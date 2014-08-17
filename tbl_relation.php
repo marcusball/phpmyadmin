@@ -146,11 +146,102 @@ if ($cfgRelation['displaywork']) {
 // in mysqli
 $columns = $GLOBALS['dbi']->getColumns($db, $table);
 
-// common form
-$html_output .= PMA_getHtmlForCommonForm(
-    $db, $table, $columns, $cfgRelation, $tbl_storage_engine, $existrel,
-    isset($existrel_foreign) ? $existrel_foreign : null, $options_array
-);
+                $found_foreign_field = false;
+                foreach ($selectboxall_foreign as $value) {
+                    $html_output .= '<option value="'
+                        . htmlspecialchars($value) . '"';
+                    if ($foreign_field && $value == $foreign_field) {
+                        $html_output .= ' selected="selected"';
+                        $found_foreign_field = true;
+                    }
+                    $html_output .= '>' . htmlspecialchars($value)
+                        . '</option>'. "\n";
+                } // end while
+
+                // we did not find the foreign field in the tables of current db,
+                // must be defined in another db so show it to avoid erasing it
+                if (!$found_foreign_field && $foreign_field) {
+                    $html_output .= '<option value="'
+                        . htmlspecialchars($foreign_field) . '"'
+                        . ' selected="selected"'
+                        . '>' . $foreign_field . '</option>' . "\n";
+                }
+                $html_output .= '</select>'
+                    . '</span>';
+
+                // For constraint name
+                $html_output .= '<span class="formelement">';
+                $constraint_name = isset($existrel_foreign[$myfield]['constraint'])
+                    ? $existrel_foreign[$myfield]['constraint'] : '';
+                $html_output .= __('Constraint name');
+                $html_output .= '<input type="text" name="constraint_name['
+                    . $myfield_md5 . ']"'
+                    . ' value="' . htmlspecialchars($constraint_name) . '"/>';
+                $html_output .= '</span>' . "\n";
+
+                $html_output .= '<span class="formelement">';
+                // For ON DELETE and ON UPDATE, the default action
+                // is RESTRICT as per MySQL doc; however, a SHOW CREATE TABLE
+                // won't display the clause if it's set as RESTRICT.
+                $on_delete = isset($existrel_foreign[$myfield]['on_delete'])
+                    ? $existrel_foreign[$myfield]['on_delete'] : 'RESTRICT';
+                $html_output .= PMA_generateDropdown(
+                    'ON DELETE',
+                    'on_delete[' . $myfield_md5 . ']',
+                    $options_array,
+                    $on_delete
+                );
+                $html_output .= '</span>' . "\n";
+
+                $html_output .= '<span class="formelement">' . "\n";
+                $on_update = isset($existrel_foreign[$myfield]['on_update'])
+                    ? $existrel_foreign[$myfield]['on_update'] : 'RESTRICT';
+                $html_output .= PMA_generateDropdown(
+                    'ON UPDATE',
+                    'on_update[' . $myfield_md5 . ']',
+                    $options_array,
+                    $on_update
+                );
+                $html_output .= '</span>' . "\n";
+            } else {
+                $html_output .= __('No index defined! Create one below');
+            } // end if (a key exists)
+            $html_output .= '</td>';
+        } // end if (InnoDB)
+        $html_output .= '</tr>';
+    } // end for
+
+    unset( $myfield, $myfield_md5, $myfield_html);
+    $html_output .= '</table>' . "\n"
+        . '</fieldset>' . "\n";
+
+    if ($cfgRelation['displaywork']) {
+        // Get "display_field" infos
+        $disp = PMA_getDisplayField($db, $table);
+        $html_output .= '<fieldset>'
+            . '<label>' . __('Choose column to display') . ': </label>'
+            . '<select name="display_field">'
+            . '<option value="">---</option>';
+
+        foreach ($save_row AS $row) {
+            $html_output .= '<option value="'
+                . htmlspecialchars($row['Field']) . '"';
+            if (isset($disp) && $row['Field'] == $disp) {
+                $html_output .= ' selected="selected"';
+            }
+            $html_output .= '>' . htmlspecialchars($row['Field'])
+                . '</option>'. "\n";
+        } // end while
+
+        $html_output .= '</select>'
+            . '</fieldset>';
+    } // end if (displayworks)
+
+    $html_output .= '<fieldset class="tblFooters">'
+        . '<input type="submit" value="' . __('Save') . '" />'
+        . '</fieldset>'
+        . '</form>';
+} // end if (we have columns in this table)
 
 if (PMA_Util::isForeignKeySupported($tbl_storage_engine)) {
     $html_output .= PMA_getHtmlForDisplayIndexes();
